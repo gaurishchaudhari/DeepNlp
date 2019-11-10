@@ -1,6 +1,6 @@
+import numpy as np
 
 def mini_batches(X, y, X_seqlen, batch_size):
-    return
     X_batch = []
     y_batch = []
     X_seqlen_batch = []
@@ -9,7 +9,7 @@ def mini_batches(X, y, X_seqlen, batch_size):
             yield X_batch, y_batch, X_seqlen_batch
             X_batch = []
             y_batch = []
-            x_len_batch = []
+            X_seqlen_batch = []
         X_batch.append(X[i])
         y_batch.append(y[i])
         X_seqlen_batch.append(X_seqlen[i])

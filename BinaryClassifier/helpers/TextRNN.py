@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
+from helpers.utils import mini_batches
 
 class TextRNN(nn.Module):
 
@@ -16,10 +17,10 @@ class TextRNN(nn.Module):
                             hidden_size=config.hidden_size,
                             num_layers=config.num_lstm_layers,
                             batch_first=True,   # input x is (batch, seqlen, dim_feature)
-                            dropout=config.dropout_keep,
+                            dropout=config.dropout_p,
                             bidirectional=config.isBidirectional)
 
-        self.dropout = nn.Dropout(config.dropout_keep)
+        self.dropout = nn.Dropout(config.dropout_p)
 
         self.fc = nn.Linear(config.hidden_size * config.num_lstm_layers * (2 if config.isBidirectional else 1), config.output_size)
 
@@ -40,7 +41,7 @@ class TextRNN(nn.Module):
         feature_map = self.dropout(h_n)
         #print('shape(feature_map) = ', feature_map.size())  # (num_layers * num_dir, batch_size, hidden_size)
 
-        fc_in = h_n.view(-1, h_n.size()[0] * h_n.size()[2])
+        fc_in = torch.cat([feature_map[i, :, :] for i in range(feature_map.shape[0])], dim=1)
         # print('shape(fc_in) = ', fc_in.size())  # (batch_size, num_layers * num_dir * hidden_size)
 
         fc_out = self.fc(fc_in)
@@ -55,23 +56,20 @@ class TextRNN(nn.Module):
         self.loss_op = loss_op
 
     def run_epoch(self, X, y, X_seqlen):
-
-        set_batch_X = np.array_split(X, len(X) / self.config.batch_size)
-        set_batch_y = np.array_split(y, len(y) / self.config.batch_size)
-        set_batch_X_seqlen = np.array_split(X_seqlen, len(X_seqlen) / self.config.batch_size)
         batch_losses = []
+        self.train()
 
-        #self.train()
-        for idx in range(len(set_batch_X)):
-            batch_X = torch.from_numpy(set_batch_X[idx]).type(torch.LongTensor)
-            batch_y = torch.from_numpy(set_batch_y[idx]).type(torch.FloatTensor)
-            batch_X_seqlen = torch.from_numpy(set_batch_X_seqlen[idx]).type(torch.LongTensor)
+        for batch_X, batch_y, batch_X_seqlen in mini_batches(X, y, X_seqlen, self.config.batch_size):
+            batch_X = torch.from_numpy(np.asarray(batch_X)).type(torch.LongTensor)
+            batch_y = torch.from_numpy(np.asarray(batch_y)).type(torch.FloatTensor)
+            batch_X_seqlen = torch.from_numpy(np.asarray(batch_X_seqlen)).type(torch.LongTensor)
 
             self.optimizer.zero_grad()
             pred_y = self.forward(batch_X, batch_X_seqlen)
             loss = self.loss_op(pred_y, batch_y)
             loss.backward()
             self.optimizer.step()
+
             batch_losses.append(loss.item())
 
         avg_loss = np.mean(batch_losses)
