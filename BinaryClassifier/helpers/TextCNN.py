@@ -5,7 +5,7 @@ from helpers.utils import mini_batches
 
 class TextCNN(nn.Module):
 
-    def __init__(self, config, word_embeddings):
+    def __init__(self, config, word_embeddings, num_classes = 2):
         super(TextCNN, self).__init__()
 
         self.config = config
@@ -28,7 +28,7 @@ class TextCNN(nn.Module):
 
         self.fc = nn.Linear(config.num_channels * len(config.kernel_size), config.output_size)
 
-        self.softmax = nn.Sigmoid()
+        self.softmax = nn.Sigmoid() if num_classes == 2 else nn.Softmax()
 
 
     def forward(self, x, x_len):

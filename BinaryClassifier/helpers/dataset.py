@@ -1,6 +1,4 @@
 import os
-import re
-import string
 from bunch import Bunch
 import numpy as np
 from sklearn.utils import shuffle
@@ -23,14 +21,11 @@ class Dataset(object):
         self.X_train_seqlen = None
         self.X_test_seqlen = None
 
-        # tokenization regex
-        self.regex = re.compile(r'[\s{}]+'.format(re.escape(string.punctuation)))
+    def load_dataset_from_dir(self, train_dir, test_dir, categories, preprocess_text_func):
+        self.raw_train = self.load_dataset_from_dir_subset(train_dir, categories, preprocess_text_func)
+        self.raw_test = self.load_dataset_from_dir_subset(test_dir, categories, preprocess_text_func)
 
-    def load_dataset_from_dir(self, train_dir, test_dir, categories):
-        self.raw_train = self.load_dataset_from_dir_subset(train_dir, categories)
-        self.raw_test = self.load_dataset_from_dir_subset(test_dir, categories)
-
-    def load_dataset_from_dir_subset(self, data_dir, categories):
+    def load_dataset_from_dir_subset(self, data_dir, categories, preprocess_text_func):
         bch = Bunch()
         bch.target_names = [c for c in categories]
         bch.data = []
@@ -41,7 +36,7 @@ class Dataset(object):
                 file_path = os.path.join(data_subset_dir, file)
                 with open(file_path, 'r', encoding='utf-8') as f:
                     text = f.read()
-                    text = self.preprocess_text(text)
+                    text = preprocess_text_func(text)
                     bch.data.append(text)
                 bch.target.append(bch.target_names.index(c))
         # shuffle
@@ -82,11 +77,11 @@ class Dataset(object):
                 self.word_embeddings.append(embedding)
                 index += 1
 
-        if self.dim_embedding == 0:
+        if len(self.word_embeddings) > 2:
             self.dim_embedding = len(self.word_embeddings[2])
+            self.word_embeddings[0] = np.zeros(self.dim_embedding)
+            self.word_embeddings[1] = np.array(np.mean(self.word_embeddings[2:], axis=0))
 
-        self.word_embeddings[0] = np.zeros(self.dim_embedding)
-        self.word_embeddings[1] = np.array(np.mean(self.word_embeddings[2:], axis=0))
         self.word_embeddings = np.asarray(self.word_embeddings)
 
     def compute_Xy(self):
@@ -133,15 +128,3 @@ class Dataset(object):
             sequence = X[i]
             padded_X[i, 0:x_len] = sequence[0:x_len]
         return padded_X
-
-    def preprocess_text(self, text):
-        text = re.sub(r'<.*>?', '', text)   # remove html tags
-        tokens = [t for t in self.regex.split(text.lower()) if t != '']
-        tokens = [t for t in tokens if self.str_has_letter(t)]   # keep tokens that have at least one letter
-        return ' '.join(tokens)
-
-    def str_has_letter(self, input_str):
-        for c in input_str:
-            if c.isalpha():
-                return True
-        return False

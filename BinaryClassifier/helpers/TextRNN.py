@@ -5,7 +5,7 @@ from helpers.utils import mini_batches
 
 class TextRNN(nn.Module):
 
-    def __init__(self, config, word_embeddings):
+    def __init__(self, config, word_embeddings, num_classes = 2):
         super(TextRNN, self).__init__()
 
         self.config = config
@@ -24,7 +24,7 @@ class TextRNN(nn.Module):
 
         self.fc = nn.Linear(config.hidden_size * config.num_lstm_layers * (2 if config.isBidirectional else 1), config.output_size)
 
-        self.softmax = nn.Sigmoid()
+        self.softmax = nn.Sigmoid() if num_classes == 2 else nn.Softmax()
 
 
     def forward(self, x, x_seqlen):
